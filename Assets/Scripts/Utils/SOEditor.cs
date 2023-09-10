@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Utils
 {
-    [CustomEditor(typeof(ItemsSO))]
+    //[CustomEditor(typeof(ScriptableObject))]
     public class SOEditor : Editor
     {
         private int foldCount = 0;
