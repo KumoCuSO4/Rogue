@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -16,24 +18,52 @@ public class ItemEditor : EditorWindow
     }
 
     private VisualElement root;
+    private Dictionary<VisualElement, object> dictionary = new Dictionary<VisualElement, object>();
     public void CreateGUI()
     {
         root = rootVisualElement;
         VisualTreeAsset visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Scripts/Editor/ItemEditor.uxml");
         visualTree.CloneTree(root);
         
-        VisualElement resizableElement = root.Q("LeftPart");
-        resizableElement.AddManipulator(new EdgeScaleManipulator());
+        VisualElement leftElement = root.Q("LeftPart");
+        leftElement.AddManipulator(new EdgeScaleManipulator());
+        VisualElement rightElement = root.Q("RightPart");
+        
+        ItemsSO itemsSo = SOLoader.GetSO<ItemsSO>();
+        List<Item> items = itemsSo.items;
+
+        ListView listView = leftElement.Q<ListView>("ItemList");
+        listView.itemsSource = items;
+        listView.makeItem = () => new Label();
+        listView.bindItem = (e, i) => (e as Label).text = $"{items[i].id}. {items[i].name}";
+        listView.selectionType = SelectionType.Single;
+        //listView.onItemsChosen += obj => DisplayItem((Item)obj.First());
+        listView.onSelectionChange += objects => DisplayItem((Item)objects.First());
+        listView.RefreshItems();
+        
+        TextField name = rightElement.Q<TextField>("Name");
+        name.RegisterCallback<InputEvent>(delegate(InputEvent evt)
+        {
+            ((Item)dictionary[name]).name = name.value;
+            listView.RefreshItems();
+        });
     }
 
+    private void DisplayItem(Item item)
+    {
+        VisualElement rightElement = root.Q("RightPart");
+        TextField name = rightElement.Q<TextField>("Name");
+        dictionary[name] = item;
+        name.value = item.name;
+    }
+    
     private void OnGUI()
     {
-        VisualElement resizableElement = root.Q("LeftPart");
-        Rect resizableArea = resizableElement.contentRect;
+        VisualElement leftElement = root.Q("LeftPart");
+        Rect resizableArea = leftElement.contentRect;
         Rect resizeHandle = new Rect(resizableArea.width - 10, 0, 10, resizableArea.height);
         EditorGUIUtility.AddCursorRect(resizeHandle, MouseCursor.ResizeHorizontal);
     }
-
 }
 
 public class EdgeScaleManipulator : MouseManipulator
@@ -67,11 +97,17 @@ public class EdgeScaleManipulator : MouseManipulator
     {
         if (CanStartManipulation(evt))
         {
-            m_Dragging = true;
-            m_StartMousePosition = evt.localMousePosition;
-            m_StartSize = new Vector2(target.resolvedStyle.width, target.resolvedStyle.height);
-            target.CaptureMouse();
-            evt.StopPropagation();
+            Vector2 mousePosition = evt.mousePosition;
+            bool clickedOnEdge = Mathf.Abs(target.contentRect.width-mousePosition.x) < m_EdgeThreshold;
+            if (clickedOnEdge)
+            {
+                m_Dragging = true;
+                m_StartMousePosition = evt.localMousePosition;
+                m_StartSize = new Vector2(target.resolvedStyle.width, target.resolvedStyle.height);
+                target.CaptureMouse();
+                evt.StopPropagation();
+            }
+            
         }
     }
 
@@ -82,15 +118,9 @@ public class EdgeScaleManipulator : MouseManipulator
             Vector2 delta = evt.localMousePosition - m_StartMousePosition;
             Vector2 newSize = m_StartSize + delta;
             newSize.x = Mathf.Max(newSize.x, 100);
-            newSize.y = Mathf.Max(newSize.y, 100);
+            newSize.x = Mathf.Min(newSize.x, target.parent.contentRect.width-100);
             
-            bool clickedOnEdge = Mathf.Abs(delta.x) > m_EdgeThreshold || Mathf.Abs(delta.y) > m_EdgeThreshold;
-
-            if (clickedOnEdge)
-            {
-                target.style.width = newSize.x;
-                // target.style.height = newSize.y;
-            }
+            target.style.width = newSize.x;
 
             evt.StopPropagation();
         }
