@@ -1,0 +1,11 @@
+.tree-view-children-container {
+    margin-left: 10px;
+}
+.tree-view-choice-button {
+    width: 20px;
+    height: 20px;
+}
+.tree-view-info-container {
+    height: 20px;
+    flex-direction: row;
+}

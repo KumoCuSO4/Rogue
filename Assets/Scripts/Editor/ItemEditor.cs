@@ -7,7 +7,6 @@ using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using Cursor = UnityEngine.Cursor;
 
-
 public class ItemEditor : EditorWindow
 {
     [MenuItem("Tools/Item Editor")]
